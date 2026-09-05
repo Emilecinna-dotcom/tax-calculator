@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tax-calculator-dusky-ten.vercel.app/sitemap.xml
