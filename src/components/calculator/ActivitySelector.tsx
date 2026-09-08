@@ -22,6 +22,9 @@ export function ActivitySelector({ value, onChange }: Props) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+            1
+          </span>
           <Briefcase className="size-4 text-muted-foreground" />
           Type d'activité
         </CardTitle>

@@ -43,7 +43,7 @@ export function TaxCalculatorApp() {
       </header>
 
       {/* Main content */}
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto max-w-6xl px-4 pt-section pb-6">
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
 
           {/* ── Colonne gauche : formulaire ── */}
@@ -88,7 +88,7 @@ export function TaxCalculatorApp() {
         </div>
       </main>
 
-      <footer className="mt-12 border-t">
+      <footer className="mt-section border-t">
         <div className="mx-auto max-w-6xl px-4 py-5">
           <p className="text-center text-xs text-muted-foreground">
             Simulateur basé sur les taux URSSAF officiels 2026. Fourni à titre indicatif uniquement.
@@ -113,11 +113,12 @@ function EmptyResults() {
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/20 px-8 py-16 text-center">
       <Calculator className="mb-4 size-12 text-muted-foreground/30" />
       <p className="text-base font-medium text-muted-foreground">
-        Entrez votre chiffre d'affaires
+        Votre résultat apparaîtra ici
       </p>
       <p className="mt-1.5 max-w-xs text-sm text-muted-foreground/70">
-        Renseignez votre CA annuel dans le formulaire pour obtenir une estimation
-        complète de vos charges et impôts.
+        Complétez les étapes 1 et 2 à gauche, choisissez votre activité puis
+        indiquez votre chiffre d'affaires, pour obtenir une estimation complète
+        de vos charges et impôts.
       </p>
     </div>
   );

@@ -87,11 +87,9 @@ export function ExpensesSection({ expenses, isSubjectToTva, onAdd, onRemove }: P
             <Receipt className="size-4 text-muted-foreground" />
             Achats & dépenses professionnels
           </span>
-          {expenses.length > 0 && (
-            <Badge variant="secondary" className="text-xs font-normal">
-              {expenses.length}
-            </Badge>
-          )}
+          <Badge variant="secondary" className="text-xs font-normal">
+            {expenses.length > 0 ? expenses.length : 'Facultatif'}
+          </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

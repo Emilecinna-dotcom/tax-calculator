@@ -46,6 +46,17 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+
+    /* Échelle d'espacement (guide desktop @zachex) : chaque token prend le
+       milieu de sa fourchette, à ajuster dans cette plage selon le contexte.
+       gap-title    : titre -> son texte        (8-16px)
+       gap-block    : bloc de texte -> image     (24-40px)
+       gap-button   : texte -> son bouton        (16-24px)
+       gap-section  : entre deux sections        (80-120px) */
+    --spacing-title: 0.75rem;
+    --spacing-block: 2rem;
+    --spacing-button: 1.25rem;
+    --spacing-section: 6.25rem;
 }
 
 :root {
