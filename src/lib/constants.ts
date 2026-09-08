@@ -1,4 +1,4 @@
-import type { ActivityType, ExpenseCategory, TvaRate } from '../types';
+import type { ActivityType, ExpenseCategory, SalarieStatut, TvaRate } from '../types';
 
 // ─── Taux cotisations sociales 2026 ───────────────────────────────────────────
 export const COTISATIONS_RATES: Record<ActivityType, number> = {
@@ -86,4 +86,63 @@ export const TVA_RATE_LABELS: Record<TvaRate, string> = {
   5.5: 'Taux réduit (5,5%)',
   10: 'Taux intermédiaire (10%)',
   20: 'Taux normal (20%)',
+};
+
+// ─── Salarié (cadre secteur privé / fonctionnaire) — taux 2026 ────────────────
+// Sources : LégiSocial (taux URSSAF, Agirc-Arrco, CEG/CET 2026), Service des
+// Retraites de l'État (pension civile, RAFP). Régime totalement différent de
+// l'auto-entrepreneur : les cotisations sont retenues à la source sur un
+// salaire brut, pas de chiffre d'affaires.
+
+// Plafond annuel de la Sécurité sociale (PASS) 2026, arrêté du 22/12/2025
+export const PASS_2026 = 48_060;
+
+export const SALARIE_LABELS: Record<SalarieStatut, string> = {
+  cadre_prive: 'Cadre du secteur privé',
+  fonctionnaire: 'Fonctionnaire titulaire',
+};
+
+export const SALARIE_DESCRIPTIONS: Record<SalarieStatut, string> = {
+  cadre_prive: 'Cotisations Sécurité sociale, Agirc-Arrco, chômage financé par l\'employeur',
+  fonctionnaire: 'Pension civile et RAFP, pas d\'Agirc-Arrco ni de cotisation chômage',
+};
+
+// Part salariale des cotisations, en % du salaire brut. T1 = jusqu'au PASS,
+// T2 = au-delà. Assurance maladie et chômage sont à 0% côté salarié en 2026
+// (entièrement financées par l'employeur dans le régime général).
+export const CADRE_PRIVE_RATES = {
+  vieillessePlafonnee: 0.069,   // sur T1
+  vieillesseDeplafonnee: 0.004, // sur la totalité
+  agircArrcoT1: 0.0315,
+  agircArrcoT2: 0.0864,
+  cegT1: 0.0086,
+  cegT2: 0.0108,
+  cet: 0.0014,                  // sur la totalité, dès que le brut dépasse le PASS
+};
+
+// Pension civile sur le traitement indiciaire brut. RAFP sur les primes,
+// plafonnées à 20% du traitement indiciaire — en l'absence de distinction
+// traitement/primes dans le simulateur, on applique le taux RAFP sur une
+// assiette forfaitaire de 20% du brut total (approximation, comme les autres
+// estimations de l'outil).
+export const FONCTIONNAIRE_RATES = {
+  pensionCivile: 0.111,
+  rafpAssietteRate: 0.20,
+  rafpRate: 0.05,
+};
+
+// CSG/CRDS : identiques pour tous les salariés, publics comme privés.
+// Assiette = 98,25% du brut.
+export const CSG_CRDS_RATES = {
+  assietteRate: 0.9825,
+  csgDeductible: 0.068,
+  csgNonDeductible: 0.024,
+  crds: 0.005,
+};
+
+// Abattement forfaitaire de 10% pour frais professionnels, 2026
+export const ABATTEMENT_FRAIS_PRO = {
+  rate: 0.10,
+  min: 509,
+  max: 14_555,
 };

@@ -6,6 +6,9 @@ import type {
   TVAInfo,
   CFEInfo,
   ActivityType,
+  SalarieInputs,
+  SalarieResult,
+  SalarieCotisationLine,
 } from '../types';
 import {
   COTISATIONS_RATES,
@@ -16,6 +19,11 @@ import {
   CFE_MIN_ESTIMATE,
   CFE_MAX_ESTIMATE,
   ACTIVITY_LABELS,
+  PASS_2026,
+  CADRE_PRIVE_RATES,
+  FONCTIONNAIRE_RATES,
+  CSG_CRDS_RATES,
+  ABATTEMENT_FRAIS_PRO,
 } from './constants';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -101,7 +109,8 @@ function computeImpotRevenu(
   const estimatedTax = round2(computeBaremeProgressif(taxableIncome / parts) * parts);
 
   return {
-    rate: revenue > 0 ? round2(estimatedTax / revenue) : 0,
+    // Pas de round2 sur un ratio : voir la note dans computeSalaireResult.
+    rate: revenue > 0 ? estimatedTax / revenue : 0,
     amount: estimatedTax,
     isVersementLiberatoire: false,
     label: `Impôt sur le revenu (barème progressif, après abattement ${Math.round(abattementRate * 100)}%)`,
@@ -123,7 +132,7 @@ function getAbattementRate(activityType: ActivityType): number {
   }
 }
 
-function computeBaremeProgressif(revenuNet: number): number {
+export function computeBaremeProgressif(revenuNet: number): number {
   // Barème 2024 (déclaration 2025) — tranche pour 1 part
   // Seuils: 0, 11 497, 29 315, 83 823, 180 294
   // Taux:   0%,  11%,   30%,   41%,    45%
@@ -281,7 +290,7 @@ export function computeTaxes(inputs: TaxInputs): TaxResult {
     (tvaInfo.isSubjectToTva ? Math.max(0, tvaInfo.tvaNet) : 0),
   );
 
-  const totalTaxRate = revenue > 0 ? round2(totalTaxes / revenue) : 0;
+  const totalTaxRate = revenue > 0 ? totalTaxes / revenue : 0;
 
   // 7. Revenu net (CA - total dépenses professionnelles HT)
   const totalExpensesHT = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -302,6 +311,101 @@ export function computeTaxes(inputs: TaxInputs): TaxResult {
     totalTaxRate,
     netAfterTaxes,
     monthlyNet,
+  };
+}
+
+// ─── Salarié (cadre secteur privé / fonctionnaire) ────────────────────────────
+
+function computeSalarieCotisations(inputs: SalarieInputs): SalarieCotisationLine[] {
+  const { grossAnnual, statut } = inputs;
+
+  if (statut === 'cadre_prive') {
+    const t1 = Math.min(grossAnnual, PASS_2026);
+    const t2 = Math.max(0, grossAnnual - PASS_2026);
+    const r = CADRE_PRIVE_RATES;
+
+    return [
+      { label: 'Assurance vieillesse plafonnée', amount: round2(t1 * r.vieillessePlafonnee) },
+      { label: 'Assurance vieillesse déplafonnée', amount: round2(grossAnnual * r.vieillesseDeplafonnee) },
+      { label: 'Retraite complémentaire Agirc-Arrco (T1)', amount: round2(t1 * r.agircArrcoT1) },
+      { label: 'Retraite complémentaire Agirc-Arrco (T2)', amount: round2(t2 * r.agircArrcoT2) },
+      { label: 'CEG (T1)', amount: round2(t1 * r.cegT1) },
+      { label: 'CEG (T2)', amount: round2(t2 * r.cegT2) },
+      { label: 'CET', amount: t2 > 0 ? round2(grossAnnual * r.cet) : 0 },
+    ];
+  }
+
+  const r = FONCTIONNAIRE_RATES;
+  return [
+    { label: 'Retenue pour pension civile', amount: round2(grossAnnual * r.pensionCivile) },
+    {
+      label: 'RAFP (retraite additionnelle)',
+      amount: round2(grossAnnual * r.rafpAssietteRate * r.rafpRate),
+    },
+  ];
+}
+
+export function computeSalaireResult(inputs: SalarieInputs): SalarieResult {
+  const { grossAnnual, numberOfParts } = inputs;
+  const cotisationLines = computeSalarieCotisations(inputs);
+  const cotisationsHorsCsg = round2(
+    cotisationLines.reduce((sum, line) => sum + line.amount, 0),
+  );
+
+  // CSG/CRDS : la part déductible réduit le revenu imposable, la part non
+  // déductible et la CRDS non — elles sont retirées du net perçu, mais
+  // réintégrées pour le calcul de l'impôt.
+  const baseCsg = round2(grossAnnual * CSG_CRDS_RATES.assietteRate);
+  const csgDeductible = round2(baseCsg * CSG_CRDS_RATES.csgDeductible);
+  const csgNonDeductible = round2(baseCsg * CSG_CRDS_RATES.csgNonDeductible);
+  const crds = round2(baseCsg * CSG_CRDS_RATES.crds);
+
+  const allLines: SalarieCotisationLine[] = [
+    ...cotisationLines,
+    { label: 'CSG déductible', amount: csgDeductible },
+    { label: 'CSG non déductible', amount: csgNonDeductible },
+    { label: 'CRDS', amount: crds },
+  ];
+  const totalCotisations = round2(cotisationsHorsCsg + csgDeductible + csgNonDeductible + crds);
+
+  const netImposable = round2(grossAnnual - cotisationsHorsCsg - csgDeductible);
+  const netBeforeTax = round2(netImposable - csgNonDeductible - crds);
+
+  // Abattement forfaitaire 10% pour frais professionnels, plafonné
+  const abattement = Math.min(
+    Math.max(netImposable * ABATTEMENT_FRAIS_PRO.rate, ABATTEMENT_FRAIS_PRO.min),
+    ABATTEMENT_FRAIS_PRO.max,
+  );
+  const revenuImposableApresAbattement = Math.max(0, round2(netImposable - abattement));
+
+  const parts = Math.max(1, numberOfParts);
+  const irAmount = round2(
+    computeBaremeProgressif(revenuImposableApresAbattement / parts) * parts,
+  );
+
+  const impotRevenu: ImpotRevenu = {
+    // Pas de round2 ici : le taux est un ratio (ex. 0,0826), pas un montant
+    // en euros. round2 l'aurait tronqué à 2 décimales du nombre lui-même
+    // (0,08 au lieu de 0,0826), affichant 8,0% au lieu de 8,3% une fois
+    // formaté. formatPercent arrondit déjà correctement à l'affichage.
+    rate: grossAnnual > 0 ? irAmount / grossAnnual : 0,
+    amount: irAmount,
+    isVersementLiberatoire: false,
+    label: 'Impôt sur le revenu (barème progressif, après abattement 10% frais professionnels)',
+  };
+
+  const netAfterTax = round2(netBeforeTax - irAmount);
+
+  return {
+    grossAnnual,
+    cotisationLines: allLines,
+    totalCotisations,
+    netImposable,
+    netBeforeTax,
+    impotRevenu,
+    netAfterTax,
+    monthlyNetBeforeTax: round2(netBeforeTax / 12),
+    monthlyNetAfterTax: round2(netAfterTax / 12),
   };
 }
 

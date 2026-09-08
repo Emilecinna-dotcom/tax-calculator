@@ -37,7 +37,9 @@ export function ActivitySelector({ value, onChange }: Props) {
             onValueChange={(val) => val && onChange(val as ActivityType)}
           >
             <SelectTrigger id="activity-type" className="w-full">
-              <SelectValue placeholder="Choisissez votre activité..." />
+              <SelectValue placeholder="Choisissez votre activité...">
+                {(val: ActivityType | null) => (val ? ACTIVITY_LABELS[val] : 'Choisissez votre activité...')}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {(Object.entries(ACTIVITY_LABELS) as [ActivityType, string][]).map(

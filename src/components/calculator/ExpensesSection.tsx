@@ -190,7 +190,9 @@ export function ExpensesSection({ expenses, isSubjectToTva, onAdd, onRemove }: P
                   }
                 >
                   <SelectTrigger id="expense-tva" className="w-full">
-                    <SelectValue />
+                    <SelectValue>
+                      {(val: string | null) => (val ? TVA_RATE_LABELS[parseFloat(val) as TvaRate] : '')}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {(Object.entries(TVA_RATE_LABELS) as [string, string][]).map(([rate, label]) => (
@@ -212,7 +214,9 @@ export function ExpensesSection({ expenses, isSubjectToTva, onAdd, onRemove }: P
                 }
               >
                 <SelectTrigger id="expense-category" className="w-full">
-                  <SelectValue />
+                  <SelectValue>
+                    {(val: ExpenseCategory | null) => (val ? EXPENSE_CATEGORY_LABELS[val] : '')}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {(Object.entries(EXPENSE_CATEGORY_LABELS) as [ExpenseCategory, string][]).map(

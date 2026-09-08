@@ -90,3 +90,36 @@ export interface TaxResult {
   netAfterTaxes: number;
   monthlyNet: number;
 }
+
+// ── Salarié (cadre secteur privé / fonctionnaire) ──
+// Régime totalement différent de l'auto-entrepreneur : cotisations prélevées
+// à la source sur un salaire brut, pas de chiffre d'affaires ni de TVA.
+
+export type SalarieStatut = 'cadre_prive' | 'fonctionnaire';
+
+export interface SalarieInputs {
+  grossAnnual: number;
+  statut: SalarieStatut;
+  numberOfParts: number;
+}
+
+export interface SalarieCotisationLine {
+  label: string;
+  amount: number;
+}
+
+export interface SalarieResult {
+  grossAnnual: number;
+  cotisationLines: SalarieCotisationLine[];
+  totalCotisations: number;
+  /** Revenu net imposable : sert de base au calcul de l'impôt, différent du
+   * net perçu car la CSG non déductible et la CRDS n'y sont pas retirées. */
+  netImposable: number;
+  /** Net avant impôt : ce que le salarié touche réellement, avant
+   * prélèvement à la source. */
+  netBeforeTax: number;
+  impotRevenu: ImpotRevenu;
+  netAfterTax: number;
+  monthlyNetBeforeTax: number;
+  monthlyNetAfterTax: number;
+}

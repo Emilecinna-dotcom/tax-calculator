@@ -1,4 +1,5 @@
-import { Calculator } from 'lucide-react';
+import { useState } from 'react';
+import { Calculator, Briefcase } from 'lucide-react';
 import { useTaxCalculator } from '@/hooks/useTaxCalculator';
 import { ActivitySelector } from './ActivitySelector';
 import { RevenueForm } from './RevenueForm';
@@ -8,9 +9,24 @@ import { CotisationsCard } from './CotisationsCard';
 import { TVACard } from './TVACard';
 import { ImpotCard } from './ImpotCard';
 import { CFECard } from './CFECard';
+import { SalarieCalculatorApp } from '../salarie/SalarieCalculatorApp';
 import { ACTIVITY_LABELS } from '@/lib/constants';
 
+type Regime = 'auto_entrepreneur' | 'salarie';
+
+const REGIME_META: Record<Regime, { title: string; subtitle: string }> = {
+  auto_entrepreneur: {
+    title: 'Simulateur Auto-Entrepreneur',
+    subtitle: 'Charges & impôts 2026 · Taux URSSAF officiels · Données à jour',
+  },
+  salarie: {
+    title: 'Simulateur Salarié',
+    subtitle: 'Cadre du privé & fonctionnaire 2026 · Brut → net après impôt',
+  },
+};
+
 export function TaxCalculatorApp() {
+  const [regime, setRegime] = useState<Regime>('auto_entrepreneur');
   const {
     inputs,
     result,
@@ -21,71 +37,91 @@ export function TaxCalculatorApp() {
     removeExpense,
   } = useTaxCalculator();
 
+  const { title, subtitle } = REGIME_META[regime];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b bg-card/95 backdrop-blur supports-backdrop-blur:bg-card/80">
-        <div className="mx-auto max-w-6xl px-4 py-4">
+        <div className="mx-auto max-w-6xl px-4 py-4 space-y-3">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
               <Calculator className="size-5" />
             </div>
             <div>
-              <h1 className="text-base font-semibold leading-tight sm:text-lg">
-                Simulateur Auto-Entrepreneur
-              </h1>
-              <p className="text-xs text-muted-foreground sm:text-sm">
-                Charges & impôts 2026 · Taux URSSAF officiels · Données à jour
-              </p>
+              <h1 className="text-base font-semibold leading-tight sm:text-lg">{title}</h1>
+              <p className="text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
             </div>
+          </div>
+
+          {/* Sélecteur de régime : deux situations totalement différentes,
+              pas deux options d'un même calcul (auto-entrepreneur = chiffre
+              d'affaires ; salarié = salaire brut retenu à la source). */}
+          <div className="flex gap-2">
+            <RegimeButton
+              icon={<Calculator className="size-3.5" />}
+              label="Auto-entrepreneur"
+              active={regime === 'auto_entrepreneur'}
+              onClick={() => setRegime('auto_entrepreneur')}
+            />
+            <RegimeButton
+              icon={<Briefcase className="size-3.5" />}
+              label="Salarié"
+              active={regime === 'salarie'}
+              onClick={() => setRegime('salarie')}
+            />
           </div>
         </div>
       </header>
 
       {/* Main content */}
       <main className="mx-auto max-w-6xl px-4 pt-section pb-6">
-        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+        {regime === 'salarie' ? (
+          <SalarieCalculatorApp />
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
 
-          {/* ── Colonne gauche : formulaire ── */}
-          <div className="space-y-4">
-            <ActivitySelector
-              value={inputs.activityType}
-              onChange={(activityType) => updateInputs({ activityType })}
-            />
-            <RevenueForm
-              inputs={inputs}
-              caPlafond={caPlafond}
-              caExceedsPlafond={caExceedsPlafond}
-              onChange={updateInputs}
-            />
-            <ExpensesSection
-              expenses={inputs.expenses}
-              isSubjectToTva={result?.tvaInfo.isSubjectToTva ?? false}
-              onAdd={addExpense}
-              onRemove={removeExpense}
-            />
-          </div>
+            {/* ── Colonne gauche : formulaire ── */}
+            <div className="space-y-4">
+              <ActivitySelector
+                value={inputs.activityType}
+                onChange={(activityType) => updateInputs({ activityType })}
+              />
+              <RevenueForm
+                inputs={inputs}
+                caPlafond={caPlafond}
+                caExceedsPlafond={caExceedsPlafond}
+                onChange={updateInputs}
+              />
+              <ExpensesSection
+                expenses={inputs.expenses}
+                isSubjectToTva={result?.tvaInfo.isSubjectToTva ?? false}
+                onAdd={addExpense}
+                onRemove={removeExpense}
+              />
+            </div>
 
-          {/* ── Colonne droite : résultats ── */}
-          <div className="space-y-4">
-            {!result ? (
-              <EmptyResults />
-            ) : (
-              <>
-                <ResultsSummary
-                  result={result}
-                  activityLabel={ACTIVITY_LABELS[inputs.activityType]}
-                />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <CotisationsCard cotisations={result.cotisationsSociales} />
-                  <ImpotCard impot={result.impotRevenu} />
-                </div>
-                <TVACard tvaInfo={result.tvaInfo} expenses={inputs.expenses} />
-                <CFECard cfeInfo={result.cfeInfo} />
-              </>
-            )}
+            {/* ── Colonne droite : résultats ── */}
+            <div className="space-y-4">
+              {!result ? (
+                <EmptyResults />
+              ) : (
+                <>
+                  <ResultsSummary
+                    result={result}
+                    activityLabel={ACTIVITY_LABELS[inputs.activityType]}
+                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <CotisationsCard cotisations={result.cotisationsSociales} />
+                    <ImpotCard impot={result.impotRevenu} />
+                  </div>
+                  <TVACard tvaInfo={result.tvaInfo} expenses={inputs.expenses} />
+                  <CFECard cfeInfo={result.cfeInfo} />
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </main>
 
       <footer className="mt-section border-t">
@@ -105,6 +141,34 @@ export function TaxCalculatorApp() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function RegimeButton({
+  icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm',
+        active
+          ? 'border-primary bg-primary text-primary-foreground'
+          : 'border-border bg-transparent text-muted-foreground hover:bg-muted',
+      ].join(' ')}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
