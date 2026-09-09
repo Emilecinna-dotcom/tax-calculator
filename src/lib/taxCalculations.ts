@@ -22,6 +22,7 @@ import {
   PASS_2026,
   CADRE_PRIVE_RATES,
   FONCTIONNAIRE_RATES,
+  CONTRACTUEL_PUBLIC_RATES,
   CSG_CRDS_RATES,
   ABATTEMENT_FRAIS_PRO,
 } from './constants';
@@ -114,6 +115,26 @@ function computeImpotRevenu(
     amount: estimatedTax,
     isVersementLiberatoire: false,
     label: `Impôt sur le revenu (barème progressif, après abattement ${Math.round(abattementRate * 100)}%)`,
+  };
+}
+
+/**
+ * Compare les deux modes de paiement de l'IR pour un même CA, indépendamment
+ * de l'option actuellement cochée dans le formulaire — sert uniquement à
+ * aider au choix (ImpotCard), le calcul principal reste piloté par
+ * `hasVersementLiberatoire` dans computeTaxes.
+ */
+export function computeImpotComparaison(
+  revenue: number,
+  activityType: ActivityType,
+  numberOfParts: number,
+): { liberatoire: number; bareme: number; recommande: 'liberatoire' | 'bareme' } {
+  const liberatoire = computeImpotRevenu(revenue, activityType, true, numberOfParts).amount;
+  const bareme = computeImpotRevenu(revenue, activityType, false, numberOfParts).amount;
+  return {
+    liberatoire,
+    bareme,
+    recommande: liberatoire <= bareme ? 'liberatoire' : 'bareme',
   };
 }
 
@@ -335,12 +356,27 @@ function computeSalarieCotisations(inputs: SalarieInputs): SalarieCotisationLine
     ];
   }
 
+  if (statut === 'contractuel_public') {
+    const t1 = Math.min(grossAnnual, PASS_2026);
+    const t2 = Math.max(0, grossAnnual - PASS_2026);
+    const r = CONTRACTUEL_PUBLIC_RATES;
+
+    return [
+      { label: 'Assurance vieillesse plafonnée', amount: round2(t1 * r.vieillessePlafonnee) },
+      { label: 'Assurance vieillesse déplafonnée', amount: round2(grossAnnual * r.vieillesseDeplafonnee) },
+      { label: 'IRCANTEC (tranche A)', amount: round2(t1 * r.ircantecT1) },
+      { label: 'IRCANTEC (tranche B)', amount: round2(t2 * r.ircantecT2) },
+    ];
+  }
+
   const r = FONCTIONNAIRE_RATES;
+  // Part de primes réelle si renseignée, sinon le forfait par défaut (20%).
+  const primesRate = (inputs.primesPercent ?? r.rafpAssietteRate * 100) / 100;
   return [
     { label: 'Retenue pour pension civile', amount: round2(grossAnnual * r.pensionCivile) },
     {
       label: 'RAFP (retraite additionnelle)',
-      amount: round2(grossAnnual * r.rafpAssietteRate * r.rafpRate),
+      amount: round2(grossAnnual * primesRate * r.rafpRate),
     },
   ];
 }

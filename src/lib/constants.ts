@@ -97,14 +97,21 @@ export const TVA_RATE_LABELS: Record<TvaRate, string> = {
 // Plafond annuel de la Sécurité sociale (PASS) 2026, arrêté du 22/12/2025
 export const PASS_2026 = 48_060;
 
+// « cadre_prive » couvre en réalité cadres et non-cadres du privé : depuis la
+// fusion Agirc-Arrco de 2019, les taux de retraite complémentaire sont
+// identiques pour les deux (seule différence réelle : la cotisation APEC à
+// 0,024% réservée aux cadres, financée quasi exclusivement par l'employeur —
+// négligeable, non modélisée séparément).
 export const SALARIE_LABELS: Record<SalarieStatut, string> = {
-  cadre_prive: 'Cadre du secteur privé',
+  cadre_prive: 'Salarié du secteur privé',
   fonctionnaire: 'Fonctionnaire titulaire',
+  contractuel_public: 'Contractuel de la fonction publique',
 };
 
 export const SALARIE_DESCRIPTIONS: Record<SalarieStatut, string> = {
   cadre_prive: 'Cotisations Sécurité sociale, Agirc-Arrco, chômage financé par l\'employeur',
   fonctionnaire: 'Pension civile et RAFP, pas d\'Agirc-Arrco ni de cotisation chômage',
+  contractuel_public: 'Sécurité sociale comme un salarié du privé + IRCANTEC, pas de pension civile',
 };
 
 // Part salariale des cotisations, en % du salaire brut. T1 = jusqu'au PASS,
@@ -129,6 +136,18 @@ export const FONCTIONNAIRE_RATES = {
   pensionCivile: 0.111,
   rafpAssietteRate: 0.20,
   rafpRate: 0.05,
+};
+
+// Contractuel de la fonction publique (agent non titulaire) : cotise à la
+// Sécurité sociale comme un salarié du privé (vieillesse plafonnée/
+// déplafonnée), mais à l'IRCANTEC plutôt qu'à l'Agirc-Arrco pour la retraite
+// complémentaire, et jamais à la pension civile ni au RAFP, réservés aux
+// titulaires. T1/T2 = même logique de tranches que le privé (PASS 2026).
+export const CONTRACTUEL_PUBLIC_RATES = {
+  vieillessePlafonnee: 0.069,
+  vieillesseDeplafonnee: 0.004,
+  ircantecT1: 0.0284,
+  ircantecT2: 0.0706,
 };
 
 // CSG/CRDS : identiques pour tous les salariés, publics comme privés.

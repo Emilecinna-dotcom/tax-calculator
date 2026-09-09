@@ -139,3 +139,24 @@
     @apply font-sans;
     }
 }
+
+/* Impression : fond blanc quel que soit le thème à l'écran (sombre ou
+   clair), texte en encre plutôt qu'en niveaux de gris de la palette --
+   sinon un thème sombre imprime des cartes grises sur fond gris, illisible
+   sur papier. Les éléments print:hidden ci-dessus retirent déjà le header,
+   la colonne de formulaire et le footer. */
+@media print {
+  :root, .dark {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.35 0 0);
+    --border: oklch(0.85 0 0);
+  }
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

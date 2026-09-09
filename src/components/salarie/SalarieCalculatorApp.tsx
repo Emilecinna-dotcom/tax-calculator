@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Briefcase, Euro, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PrintButton, PrintHeader } from '@/components/shared/PrintButton';
+import { SaveButton } from '@/components/shared/SaveButton';
+import { HistoryPanel } from '@/components/shared/HistoryPanel';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,7 +16,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { computeSalaireResult, formatCurrency, formatPercent } from '@/lib/taxCalculations';
 import { SALARIE_LABELS, SALARIE_DESCRIPTIONS } from '@/lib/constants';
-import type { SalarieStatut } from '@/types';
+import { loadHistory, saveHistoryEntry, removeHistoryEntry, type HistoryEntry } from '@/lib/history';
+import type { SalarieInputs, SalarieStatut } from '@/types';
 
 const STEP_BADGE =
   'flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground';
@@ -22,20 +26,49 @@ export function SalarieCalculatorApp() {
   const [statut, setStatut] = useState<SalarieStatut>('cadre_prive');
   const [grossAnnual, setGrossAnnual] = useState<number>(0);
   const [numberOfParts, setNumberOfParts] = useState<number>(1);
+  const [primesPercent, setPrimesPercent] = useState<number>(20);
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<HistoryEntry<SalarieInputs>[]>(() =>
+    loadHistory().filter((e): e is HistoryEntry<SalarieInputs> => e.regime === 'salarie'),
+  );
 
   const result = useMemo(
     () =>
       grossAnnual > 0
-        ? computeSalaireResult({ grossAnnual, statut, numberOfParts })
+        ? computeSalaireResult({ grossAnnual, statut, numberOfParts, primesPercent })
         : null,
-    [grossAnnual, statut, numberOfParts],
+    [grossAnnual, statut, numberOfParts, primesPercent],
   );
 
+  function handleSave() {
+    if (!result) return;
+    const all = saveHistoryEntry<SalarieInputs>({
+      regime: 'salarie',
+      label: `${SALARIE_LABELS[statut]} · Brut ${formatCurrency(grossAnnual)}`,
+      netAfter: result.netAfterTax,
+      payload: { grossAnnual, statut, numberOfParts, primesPercent },
+    });
+    setHistory(all.filter((e): e is HistoryEntry<SalarieInputs> => e.regime === 'salarie'));
+  }
+
+  function handleRestore(payload: SalarieInputs) {
+    setGrossAnnual(payload.grossAnnual);
+    setStatut(payload.statut);
+    setNumberOfParts(payload.numberOfParts);
+    setPrimesPercent(payload.primesPercent ?? 20);
+    setHistoryOpen(false);
+  }
+
+  function handleDelete(id: string) {
+    const all = removeHistoryEntry(id);
+    setHistory(all.filter((e): e is HistoryEntry<SalarieInputs> => e.regime === 'salarie'));
+  }
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-      {/* ── Colonne gauche : formulaire ── */}
-      <div className="space-y-4">
+    <div className="grid gap-6 lg:grid-cols-[420px_1fr] print:block">
+      {/* ── Colonne gauche : formulaire (masqué à l'impression) ── */}
+      <div className="print:hidden space-y-4">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -70,6 +103,25 @@ export function SalarieCalculatorApp() {
             <div className="rounded-lg bg-muted/50 p-3">
               <p className="text-sm text-muted-foreground">{SALARIE_DESCRIPTIONS[statut]}</p>
             </div>
+
+            {statut === 'fonctionnaire' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="salarie-primes">Part de primes dans le brut (%)</Label>
+                <Input
+                  id="salarie-primes"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={primesPercent}
+                  onChange={(e) => setPrimesPercent(Number(e.target.value) || 0)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Sert au calcul du RAFP, qui porte sur les primes et non sur le traitement
+                  indiciaire. 20% par défaut si vous ne savez pas — regardez le cumul primes
+                  de votre fiche de paie pour affiner.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -130,12 +182,26 @@ export function SalarieCalculatorApp() {
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="size-4 text-muted-foreground" />
-                Synthèse
+              <CardTitle className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2">
+                  <TrendingUp className="size-4 text-muted-foreground" />
+                  Synthèse
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <HistoryPanel
+                    open={historyOpen}
+                    onToggle={() => setHistoryOpen((v) => !v)}
+                    entries={history}
+                    onRestore={handleRestore}
+                    onDelete={handleDelete}
+                  />
+                  <SaveButton onSave={handleSave} />
+                  <PrintButton />
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
+              <PrintHeader title="Simulateur Salarié" />
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <StatBox label="Brut annuel" value={formatCurrency(result.grossAnnual)} color="text-foreground" />
                 <StatBox

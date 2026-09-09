@@ -10,7 +10,11 @@ import { TVACard } from './TVACard';
 import { ImpotCard } from './ImpotCard';
 import { CFECard } from './CFECard';
 import { SalarieCalculatorApp } from '../salarie/SalarieCalculatorApp';
+import { HistoryPanel } from '../shared/HistoryPanel';
 import { ACTIVITY_LABELS } from '@/lib/constants';
+import { formatCurrency } from '@/lib/taxCalculations';
+import { loadHistory, saveHistoryEntry, removeHistoryEntry, type HistoryEntry } from '@/lib/history';
+import type { TaxInputs } from '@/types';
 
 type Regime = 'auto_entrepreneur' | 'salarie';
 
@@ -37,21 +41,59 @@ export function TaxCalculatorApp() {
     removeExpense,
   } = useTaxCalculator();
 
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<HistoryEntry<TaxInputs>[]>(() =>
+    loadHistory().filter((e): e is HistoryEntry<TaxInputs> => e.regime === 'auto_entrepreneur'),
+  );
+
+  function handleSave() {
+    if (!result) return;
+    const all = saveHistoryEntry<TaxInputs>({
+      regime: 'auto_entrepreneur',
+      label: `${ACTIVITY_LABELS[inputs.activityType]} · CA ${formatCurrency(inputs.revenue)}`,
+      netAfter: result.netAfterTaxes,
+      payload: inputs,
+    });
+    setHistory(all.filter((e): e is HistoryEntry<TaxInputs> => e.regime === 'auto_entrepreneur'));
+  }
+
+  function handleRestore(payload: TaxInputs) {
+    updateInputs(payload);
+    setHistoryOpen(false);
+  }
+
+  function handleDelete(id: string) {
+    const all = removeHistoryEntry(id);
+    setHistory(all.filter((e): e is HistoryEntry<TaxInputs> => e.regime === 'auto_entrepreneur'));
+  }
+
   const { title, subtitle } = REGIME_META[regime];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b bg-card/95 backdrop-blur supports-backdrop-blur:bg-card/80">
+      {/* Header : masqué à l'impression, PrintHeader le remplace dans le résultat */}
+      <header className="print:hidden sticky top-0 z-10 border-b bg-card/95 backdrop-blur supports-backdrop-blur:bg-card/80">
         <div className="mx-auto max-w-6xl px-4 py-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
-              <Calculator className="size-5" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
+                <Calculator className="size-5" />
+              </div>
+              <div>
+                <h1 className="text-base font-semibold leading-tight sm:text-lg">{title}</h1>
+                <p className="text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-base font-semibold leading-tight sm:text-lg">{title}</h1>
-              <p className="text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
-            </div>
+
+            {regime === 'auto_entrepreneur' && (
+              <HistoryPanel
+                open={historyOpen}
+                onToggle={() => setHistoryOpen((v) => !v)}
+                entries={history}
+                onRestore={handleRestore}
+                onDelete={handleDelete}
+              />
+            )}
           </div>
 
           {/* Sélecteur de régime : deux situations totalement différentes,
@@ -79,10 +121,11 @@ export function TaxCalculatorApp() {
         {regime === 'salarie' ? (
           <SalarieCalculatorApp />
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+          <div className="grid gap-6 lg:grid-cols-[420px_1fr] print:block">
 
-            {/* ── Colonne gauche : formulaire ── */}
-            <div className="space-y-4">
+            {/* ── Colonne gauche : formulaire (masqué à l'impression, seul
+                le résultat a un sens sur une page imprimée) ── */}
+            <div className="print:hidden space-y-4">
               <ActivitySelector
                 value={inputs.activityType}
                 onChange={(activityType) => updateInputs({ activityType })}
@@ -110,10 +153,16 @@ export function TaxCalculatorApp() {
                   <ResultsSummary
                     result={result}
                     activityLabel={ACTIVITY_LABELS[inputs.activityType]}
+                    onSave={handleSave}
                   />
                   <div className="grid gap-4 sm:grid-cols-2">
                     <CotisationsCard cotisations={result.cotisationsSociales} />
-                    <ImpotCard impot={result.impotRevenu} />
+                    <ImpotCard
+                      impot={result.impotRevenu}
+                      revenue={inputs.revenue}
+                      activityType={inputs.activityType}
+                      numberOfParts={inputs.numberOfParts}
+                    />
                   </div>
                   <TVACard tvaInfo={result.tvaInfo} expenses={inputs.expenses} />
                   <CFECard cfeInfo={result.cfeInfo} />
@@ -124,7 +173,7 @@ export function TaxCalculatorApp() {
         )}
       </main>
 
-      <footer className="mt-section border-t">
+      <footer className="print:hidden mt-section border-t">
         <div className="mx-auto max-w-6xl px-4 py-5">
           <p className="text-center text-xs text-muted-foreground">
             Simulateur basé sur les taux URSSAF officiels 2026. Fourni à titre indicatif uniquement.

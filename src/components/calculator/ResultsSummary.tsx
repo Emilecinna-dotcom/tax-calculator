@@ -1,14 +1,17 @@
 import { TrendingUp, Wallet, PiggyBank, CalendarDays } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PrintButton, PrintHeader } from '@/components/shared/PrintButton';
+import { SaveButton } from '@/components/shared/SaveButton';
 import { formatCurrency, formatPercent } from '@/lib/taxCalculations';
 import type { TaxResult } from '@/types';
 
 interface Props {
   result: TaxResult;
   activityLabel: string;
+  onSave: () => void;
 }
 
-export function ResultsSummary({ result, activityLabel }: Props) {
+export function ResultsSummary({ result, activityLabel, onSave }: Props) {
   const {
     revenue,
     netAfterTaxes,
@@ -36,12 +39,19 @@ export function ResultsSummary({ result, activityLabel }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="size-4 text-muted-foreground" />
-          Synthèse fiscale
+        <CardTitle className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2">
+            <TrendingUp className="size-4 text-muted-foreground" />
+            Synthèse fiscale
+          </span>
+          <span className="flex items-center gap-1.5">
+            <SaveButton onSave={onSave} />
+            <PrintButton />
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
+        <PrintHeader title="Simulateur Auto-Entrepreneur" />
 
         {/* Chiffres clés */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

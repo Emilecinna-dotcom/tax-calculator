@@ -95,12 +95,15 @@ export interface TaxResult {
 // Régime totalement différent de l'auto-entrepreneur : cotisations prélevées
 // à la source sur un salaire brut, pas de chiffre d'affaires ni de TVA.
 
-export type SalarieStatut = 'cadre_prive' | 'fonctionnaire';
+export type SalarieStatut = 'cadre_prive' | 'fonctionnaire' | 'contractuel_public';
 
 export interface SalarieInputs {
   grossAnnual: number;
   statut: SalarieStatut;
   numberOfParts: number;
+  /** Fonctionnaire uniquement : part du brut correspondant aux primes,
+   * base réelle du RAFP. Optionnel — 20% par défaut si non renseigné. */
+  primesPercent?: number;
 }
 
 export interface SalarieCotisationLine {

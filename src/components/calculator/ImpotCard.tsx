@@ -1,14 +1,19 @@
-import { FileText } from 'lucide-react';
+import { FileText, Scale } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency, formatPercent } from '@/lib/taxCalculations';
-import type { ImpotRevenu } from '@/types';
+import { computeImpotComparaison, formatCurrency, formatPercent } from '@/lib/taxCalculations';
+import type { ActivityType, ImpotRevenu } from '@/types';
 
 interface Props {
   impot: ImpotRevenu;
+  revenue: number;
+  activityType: ActivityType;
+  numberOfParts: number;
 }
 
-export function ImpotCard({ impot }: Props) {
+export function ImpotCard({ impot, revenue, activityType, numberOfParts }: Props) {
+  const comparaison = computeImpotComparaison(revenue, activityType, numberOfParts);
+  const ecart = Math.abs(comparaison.liberatoire - comparaison.bareme);
   return (
     <Card>
       <CardHeader>
@@ -69,7 +74,65 @@ export function ImpotCard({ impot }: Props) {
             </p>
           </div>
         )}
+
+        {/* Comparateur : les deux montants, indépendamment de l'option cochée
+            ci-dessus, pour aider au choix plutôt que de forcer à basculer le
+            réglage pour voir l'autre chiffre. */}
+        {revenue > 0 && (
+          <div className="space-y-2 rounded-lg border p-3">
+            <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <Scale className="size-3.5" />
+              Comparateur des deux modes
+            </p>
+            <ComparaisonRow
+              label="Versement libératoire"
+              amount={comparaison.liberatoire}
+              isBest={comparaison.recommande === 'liberatoire'}
+            />
+            <ComparaisonRow
+              label="Barème progressif"
+              amount={comparaison.bareme}
+              isBest={comparaison.recommande === 'bareme'}
+            />
+            {ecart > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Écart : {formatCurrency(ecart)} en faveur du{' '}
+                {comparaison.recommande === 'liberatoire' ? 'versement libératoire' : 'barème progressif'}.
+              </p>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              * Le versement libératoire n'est éligible qu'en dessous d'un plafond de revenu
+              fiscal de référence du foyer (n-2), non demandé ici.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function ComparaisonRow({
+  label,
+  amount,
+  isBest,
+}: {
+  label: string;
+  amount: number;
+  isBest: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className={isBest ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+        {label}
+        {isBest && (
+          <span className="ml-1.5 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-950/40 dark:text-green-400">
+            plus avantageux
+          </span>
+        )}
+      </span>
+      <span className={isBest ? 'font-semibold text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
+        {formatCurrency(amount)}
+      </span>
+    </div>
   );
 }
